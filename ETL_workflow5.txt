@@ -1,0 +1,17 @@
+-- to delete data from all the tables
+use schema landing_zone;
+delete from customer;
+delete from item;
+delete from orders;
+
+use schema curated_zone;
+show tasks;
+delete from curated_customer;
+delete from curated_item;
+delete from curated_order;
+
+use schema consumption_zone;
+show tasks;
+delete from customer_dim;
+delete from item_dim;
+delete from order_fact;

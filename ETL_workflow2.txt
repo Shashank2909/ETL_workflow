@@ -1,0 +1,77 @@
+ -- order stage  https://etl10082022.blob.core.windows.net/delta
+    create or replace stage delta_orders_stage
+        url = 'azure://etl10082022.blob.core.windows.net/delta/order_stage/' 
+        comment = 'feed delta order files';
+    -- item stage
+    create stage delta_items_stage
+        url = 'azure://etl10082022.blob.core.windows.net/delta/item_stage/' 
+        comment = 'feed delta item files';
+
+    -- customer stage
+    create stage delta_customer_stage
+        url = 'azure://etl10082022.blob.core.windows.net/delta/customer_stage/' 
+        comment = 'feed delta customer files';
+        
+    show stages;
+
+list @delta_orders_stage;
+list @delta_items_stage;
+list @delta_customer_stage;
+
+
+create or replace notification integration etlsnowflake
+Enabled = TRUE
+Type = Queue
+Notification_Provider = Azure_Storage_Queue
+Azure_Storage_Queue_Primary_URI = "https://etl10082022.queue.core.windows.net/etl10082022que" 
+Azure_Tenant_ID = "f2f70e35-f7a3-49d2-bc65-6ded8432c767"; 
+
+desc notification integration etlsnowflake;
+
+create or replace pipe order_pipe
+    auto_ingest = true
+    integration = etlsnowflake
+    as 
+        copy into orders from @delta_orders_stage
+        file_format = (type=csv COMPRESSION=none)
+        --pattern='.*order.*[.]csv'
+        ON_ERROR = 'CONTINUE';
+
+create or replace pipe item_pipe
+        auto_ingest = true
+        integration = etlsnowflake
+     as 
+        copy into item from @delta_items_stage
+        file_format = (type=csv COMPRESSION=none)
+        --pattern='.*item.*[.]csv'
+        ON_ERROR = 'CONTINUE';
+
+create or replace pipe customer_pipe
+        auto_ingest = true
+        integration = etlsnowflake
+    as 
+        copy into customer from @delta_customer_stage
+        file_format = (type=csv COMPRESSION=none)
+        --pattern='.*customer.*[.]csv'
+        ON_ERROR = 'CONTINUE';
+        
+        
+show pipes;
+select system$pipe_status('order_pipe');
+select system$pipe_status('item_pipe');
+select system$pipe_status('customer_pipe');
+
+select * from snowflake.account_usage.copy_history;
+
+alter pipe  item_pipe set PIPE_EXECUTION_PAUSED = True;
+alter pipe order_pipe set PIPE_EXECUTION_PAUSED = True;
+alter pipe customer_pipe set PIPE_EXECUTION_PAUSED = True;
+
+alter pipe  item_pipe set PIPE_EXECUTION_PAUSED = False;
+alter pipe order_pipe set PIPE_EXECUTION_PAUSED = False;
+alter pipe customer_pipe set PIPE_EXECUTION_PAUSED = False;
+
+list @delta_customer_stage;
+alter pipe customer_pipe refresh;
+alter pipe order_pipe refresh;
+alter pipe item_pipe refresh;
